@@ -1,19 +1,23 @@
 from fastapi import APIRouter
 from groq import Groq
+from voyageai import Client
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-
 client = Groq(
   api_key=os.getenv("GROQ_API_KEY"),
 )
 
-router = APIRouter(prefix="/llama", tags=["llama"])
+embeddings_client = Client(
+  api_key = os.getenv("VOYAGE_API_KEY")
+)
+
+router = APIRouter(prefix="/process", tags=["process"])
 
 
-@router.post("/get_summary")
+@router.post("/summary")
 def get_summary(content:str):
   chat_completion = client.chat.completions.create(
     messages=[
@@ -26,7 +30,7 @@ def get_summary(content:str):
   )
   return chat_completion.choices[0].message.content
 
-@router.post("/get_keywords")
+@router.post("/keywords")
 def get_keywords(summary:str):
   chat_completion = client.chat.completions.create(
     messages=[
@@ -45,3 +49,9 @@ def get_keywords(summary:str):
     model="llama3-70b-8192",
   )
   return chat_completion.choices[0].message.content
+
+@router.post("/embedding")
+def get_embedding(text:str, client=embeddings_client):
+  result = client.embed(text, model="voyage-2")
+  return result.embeddings[0]
+
