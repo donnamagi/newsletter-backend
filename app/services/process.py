@@ -1,28 +1,31 @@
 import os
 from dotenv import load_dotenv
-from groq import Groq
+from groq import AsyncGroq
 from voyageai import Client
-import requests
 from bs4 import BeautifulSoup
 from services.scrape import clean_text
+import aiohttp
 
 load_dotenv()
 
 class ProcessService:
   def __init__(self):
-    self.groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    self.groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
     self.embeddings_client = Client(api_key=os.getenv("VOYAGE_API_KEY"))
 
-  def get_content(self, url: str) -> str:
-    content = requests.get(url)
-    if content.status_code == 200:
-      soup = BeautifulSoup(content.text, 'html.parser')
-      return clean_text(soup)
-    else:
-      return None
+  async def get_content(self, url: str) -> str:
+    async with aiohttp.ClientSession() as session:
+      async with session.get(url) as response:
+        if response.status == 200:
+          content = await response.text()
+          soup = BeautifulSoup(content, 'html.parser')
+          content = clean_text(soup)
+          return content
+        else:
+          return None
 
-  def get_summary(self, content: str) -> str:
-    chat_completion = self.groq_client.chat.completions.create(
+  async def get_summary(self, content: str) -> str:
+    chat_completion = await self.groq_client.chat.completions.create(
       messages=[
         {
           "role": "user",
@@ -33,8 +36,8 @@ class ProcessService:
     )
     return chat_completion.choices[0].message.content
 
-  def get_keywords(self, summary: str) -> str:
-    chat_completion = self.groq_client.chat.completions.create(
+  async def get_keywords(self, summary: str) -> str:
+    chat_completion = await self.groq_client.chat.completions.create(
       messages=[
         {
           "role": "user",
@@ -52,7 +55,7 @@ class ProcessService:
     )
     return chat_completion.choices[0].message.content
 
-  def get_embedding(self, summary: str) -> list:
+  async def get_embedding(self, summary: str) -> list:
     result = self.embeddings_client.embed(summary, model="voyage-2")
     return result.embeddings[0]
 

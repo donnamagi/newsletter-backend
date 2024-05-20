@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from services.process import ProcessService
+import asyncio
 
 router = APIRouter(prefix="/process", tags=["process"])
 
@@ -17,12 +18,14 @@ def get_process_service():
   return ProcessService()
 
 @router.post("/")
-def get_all(request: ProcessingRequest, service: ProcessService = Depends(get_process_service)):
+async def get_all(request: ProcessingRequest, service: ProcessService = Depends(get_process_service)):
 
-  content = service.get_content(request.url)
-  summary = service.get_summary(content)
-  keywords = service.get_keywords(summary)
-  embedding = service.get_embedding(summary)
+  content = await service.get_content(request.url)
+  summary = await service.get_summary(content)
+
+  keywords_task = asyncio.create_task(service.get_keywords(summary))
+  embedding_task = asyncio.create_task(service.get_embedding(summary))
+  keywords, embedding = await asyncio.gather(keywords_task, embedding_task)
 
   return {"summary": summary, "keywords": keywords, "embedding": embedding}
 
