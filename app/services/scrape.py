@@ -37,6 +37,6 @@ def clean_text(soup: BeautifulSoup):
     
   description = get_description(soup)
   body = get_body(soup)
-  summary = description + clean_text(body)
+  summary = description + remove_chars(body)
   
   return summary
